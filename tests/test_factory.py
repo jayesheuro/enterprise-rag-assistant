@@ -113,6 +113,7 @@ class TestFakesWork:
         assert response.text == "Hello!"
         assert response.token_usage.total_tokens == 15
         assert llm.call_count == 1
+        assert llm.last_messages is not None
         assert llm.last_messages[0].content == "Hi"
 
     def test_fake_embedder(self):

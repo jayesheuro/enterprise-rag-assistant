@@ -62,7 +62,7 @@ class TestProviderConfig:
             temperature=0.7,
             max_output_tokens=2048,
         )
-        assert config.model == "gemini-3.8-flash"
+        assert config.model == "gemini-2.0-flash"
         assert config.base_url is None  # Not set for cloud providers
 
     def test_ollama_config(self):
@@ -110,6 +110,7 @@ class TestLoadAppConfig:
         with open(provider_yaml_path) as f:
             expected = yaml.safe_load(f)
 
+        assert config.provider_config is not None
         assert config.provider_config.model == expected["model"]
 
     def test_missing_provider_yaml_raises(self, tmp_path):
