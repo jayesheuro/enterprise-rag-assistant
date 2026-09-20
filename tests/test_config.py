@@ -79,14 +79,14 @@ class TestSecretsConfig:
 
     def test_defaults_when_no_env(self):
         """Secrets should default to empty strings when .env is absent."""
-        config = SecretsConfig(_env_file="nonexistent.env")
+        config = SecretsConfig()
         assert config.google_api_key == ""
         assert config.aws_access_key_id == ""
 
     def test_loads_from_env_vars(self, monkeypatch):
         """Secrets can be loaded from environment variables."""
         monkeypatch.setenv("GOOGLE_API_KEY", "test-key-123")
-        config = SecretsConfig(_env_file="nonexistent.env")
+        config = SecretsConfig()
         assert config.google_api_key == "test-key-123"
 
 

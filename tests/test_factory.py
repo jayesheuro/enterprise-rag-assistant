@@ -28,7 +28,6 @@ def _make_config(provider: str = "gemini") -> AppConfig:
             region="us-east-1" if provider == "bedrock" else None,
         ),
         secrets=SecretsConfig(
-            _env_file="nonexistent.env",
             google_api_key="fake-key" if provider == "gemini" else "",
             aws_access_key_id="fake-aws-key" if provider == "bedrock" else "",
             aws_secret_access_key="fake-aws-secret" if provider == "bedrock" else "",

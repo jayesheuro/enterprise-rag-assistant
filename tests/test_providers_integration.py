@@ -61,7 +61,7 @@ class TestGeminiIntegration:
                 max_output_tokens=100,
                 timeout=30,
             ),
-            SecretsConfig(_env_file="nonexistent.env"),
+            SecretsConfig(),
         )
 
     def test_gemini_llm_generate(self):
