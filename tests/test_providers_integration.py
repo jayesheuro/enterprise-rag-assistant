@@ -55,7 +55,7 @@ class TestGeminiIntegration:
     def _make_config(self):
         return (
             ProviderConfig(
-                model="gemini-2.0-flash",
+                model="gemini-3.8-flash",
                 embedding_model="text-embedding-004",
                 temperature=0.1,
                 max_output_tokens=100,
@@ -74,7 +74,7 @@ class TestGeminiIntegration:
         response = llm.generate([Message(role="user", content="Say OK")])
 
         assert response.text.strip() != ""
-        assert response.model_name == "gemini-2.0-flash"
+        assert response.model_name == "gemini-3.8-flash"
         assert response.latency_ms > 0
         assert response.token_usage.total_tokens > 0
 
