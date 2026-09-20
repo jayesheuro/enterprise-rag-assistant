@@ -13,7 +13,6 @@ configs/app.yaml to provider: bedrock
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 
 from app.core.config import ProviderConfig, SecretsConfig
 from app.core.exceptions import ProviderAuthError, ProviderError
@@ -26,9 +25,6 @@ from app.services.providers.base import (
     TokenUsage,
 )
 
-if TYPE_CHECKING:
-    import boto3  # noqa: F811
-
 logger = get_logger(__name__)
 
 
@@ -39,7 +35,7 @@ def _get_boto3_client(service: str, config: ProviderConfig, secrets: SecretsConf
     not when the module is imported.
     """
     try:
-        import boto3
+        import boto3  # type: ignore[import-not-found]
     except ImportError as e:
         raise ProviderError(
             "boto3 is required for the Bedrock provider. "
@@ -78,7 +74,7 @@ class BedrockLLM(BaseLLM):
     def _has_default_credentials() -> bool:
         """Check if default AWS credentials are available (e.g., IAM role)."""
         try:
-            import boto3
+            import boto3  # type: ignore[import-not-found]
 
             session = boto3.Session()
             credentials = session.get_credentials()

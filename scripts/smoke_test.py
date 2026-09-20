@@ -36,6 +36,7 @@ def main() -> None:
     # 1. Load config
     config = load_app_config()
     print(f"\n✓ Config loaded: provider={config.provider}")
+    assert config.provider_config is not None, "Provider config failed to load"
     print(f"  Model: {config.provider_config.model}")
     print(f"  Embedding model: {config.provider_config.embedding_model}")
 

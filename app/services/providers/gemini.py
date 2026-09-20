@@ -151,7 +151,10 @@ class GeminiEmbedder(BaseEmbedder):
 
             # response.embeddings is a list of ContentEmbedding objects
             if response.embeddings:
-                return [emb.values for emb in response.embeddings]
+                result: list[list[float]] = [
+                    list(emb.values) for emb in response.embeddings if emb.values
+                ]
+                return result
             return []
 
         except Exception as e:
