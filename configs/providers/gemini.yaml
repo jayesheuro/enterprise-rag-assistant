@@ -1,0 +1,16 @@
+# Gemini provider configuration
+# Uses Google's Gemini API via the google-genai SDK.
+# Requires GOOGLE_API_KEY in .env
+
+# Chat/generation model
+model: gemini-2.0-flash
+
+# Embedding model (768 dimensions)
+embedding_model: text-embedding-004
+
+# Generation parameters
+temperature: 0.7
+max_output_tokens: 2048
+
+# Request timeout in seconds
+timeout: 30

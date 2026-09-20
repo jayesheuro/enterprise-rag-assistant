@@ -1,0 +1,20 @@
+# Ollama provider configuration
+# Uses a local Ollama instance via its HTTP API.
+# No API key required — just have Ollama running locally.
+
+# Ollama server URL
+base_url: http://localhost:11434
+
+# Chat/generation model (llama3.2 is ~2GB, good for 8GB RAM)
+model: llama3.2
+
+# Embedding model (nomic-embed-text: 768 dimensions, ~274MB)
+# Pull with: ollama pull nomic-embed-text
+embedding_model: nomic-embed-text
+
+# Generation parameters
+temperature: 0.7
+max_output_tokens: 2048
+
+# Request timeout in seconds (local models can be slower on CPU)
+timeout: 120

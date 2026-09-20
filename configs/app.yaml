@@ -1,0 +1,23 @@
+# Application configuration
+# This is the main config file. Secrets (API keys) go in .env, NOT here.
+
+# Active LLM/Embedding provider: gemini | ollama | bedrock
+provider: gemini
+
+# Chunking settings for document ingestion
+chunking:
+    # Number of characters per chunk
+    chunk_size: 1000
+    # Overlap between consecutive chunks (helps preserve context at boundaries)
+    chunk_overlap: 200
+    # Chunking strategy: fixed | semantic (semantic added in later phases)
+    strategy: fixed
+
+# Retrieval settings
+retrieval:
+    # Number of top results to return from vector search
+    top_k: 5
+    # Minimum similarity score (0.0-1.0) to include a result
+    similarity_threshold: 0.7
+    # Whether to apply reranking to initial results
+    reranking_enabled: false

@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment secrets
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LanceDB vector store data
+data/lancedb/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Eval reports (generated)
+eval/reports/*.json
+
+# Learning docs (private - not for GitHub)
+docs/learning/
+docs/question-bank/
+
+# uv
+.python-version
+
+# Misc
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
