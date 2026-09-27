@@ -56,7 +56,7 @@ class TestGeminiIntegration:
         return (
             ProviderConfig(
                 model="gemini-3.8-flash",
-                embedding_model="text-embedding-004",
+                embedding_model="gemini-embedding-001",
                 temperature=0.1,
                 max_output_tokens=100,
                 timeout=30,

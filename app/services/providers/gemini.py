@@ -74,6 +74,9 @@ class GeminiLLM(BaseLLM):
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 system_instruction=system_instruction,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                    disable=True,
+                ),
             )
 
             response = self._client.models.generate_content(
@@ -113,8 +116,6 @@ class GeminiEmbedder(BaseEmbedder):
 
     # Known dimensions for Gemini embedding models
     _KNOWN_DIMENSIONS: dict[str, int] = {
-        "text-embedding-004": 768,
-        "embedding-001": 768,
         "gemini-embedding-001": 3072,
         "gemini-embedding-002": 3072,
     }

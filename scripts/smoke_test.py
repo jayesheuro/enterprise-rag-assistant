@@ -19,6 +19,10 @@ from pathlib import Path
 # Ensure project root is on sys.path so imports work
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Fix Windows console encoding (cp1252 can't handle ✓ and 💡)
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
 from app.core.config import load_app_config
 from app.core.logging import setup_logging
 from app.services.providers.factory import create_embedder, create_llm

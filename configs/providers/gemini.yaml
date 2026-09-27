@@ -5,8 +5,8 @@
 # Chat/generation model
 model: gemini-3.8-flash
 
-# Embedding model (768 dimensions)
-embedding_model: text-embedding-004
+# Embedding model (3072 dimensions)
+embedding_model: gemini-embedding-001
 
 # Generation parameters
 temperature: 0.7

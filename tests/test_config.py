@@ -58,7 +58,7 @@ class TestProviderConfig:
     def test_gemini_config(self):
         config = ProviderConfig(
             model="gemini-3.8-flash",
-            embedding_model="text-embedding-004",
+            embedding_model="gemini-embedding-001",
             temperature=0.7,
             max_output_tokens=2048,
         )
