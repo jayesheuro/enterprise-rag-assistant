@@ -1,0 +1,26 @@
+name: rerank
+version: "1.0.0"
+changelog:
+  - version: "1.0.0"
+    date: "2024-01-01"
+    changes: "Initial reranking prompt"
+template_vars:
+  - chunks
+  - query
+template: |
+  You are a relevance scoring system. Given a query and a list of text chunks,
+  score each chunk's relevance to the query on a scale of 0-10.
+
+  Score guidelines:
+  - 0-2: Not relevant at all
+  - 3-5: Somewhat relevant, tangentially related
+  - 6-8: Relevant, contains useful information for the query
+  - 9-10: Highly relevant, directly answers the query
+
+  QUERY: {query}
+
+  CHUNKS:
+  {chunks}
+
+  Respond with ONLY valid JSON in this exact format:
+  {{"scores": [{{"index": 0, "score": 7}}, {{"index": 1, "score": 3}}, ...]}}

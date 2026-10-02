@@ -84,3 +84,54 @@ We will implement an idempotent ingestion design using a **Hash-Based Stable ID*
 ### Consequences
 - **Positive:** The vector database will perfectly mirror the state of the local file system corpus. The pipeline can be run safely on a cron job or webhook trigger without fear of data duplication. 
 - **Negative:** Hashing large files adds overhead to the ingestion process. Deleting and re-inserting documents on minor changes is slightly less efficient than a diff-based patch, but far simpler to implement and debug.
+
+---
+
+## ADR-006: Hybrid Retrieval with RRF
+
+**Status**: Accepted  
+**Date**: 2026-10-02  
+
+### Context
+Pure vector (dense) search is excellent for semantic similarity but often misses exact keyword matches, identifiers, acronyms, or specific jargon where vocabulary mismatches occur between the query and the text. For instance, a query for "password policy" might retrieve "authentication requirements" via vector similarity, but entirely miss the specific section titled "Password Policy" because dense vectors generalize. Conversely, Full-Text Search (FTS) handles exact keywords perfectly but fails at semantic intent.
+
+### Decision
+We will implement a hybrid retrieval approach combining dense vector search and sparse FTS. The results from both retrieval methods will be fused using Reciprocal Rank Fusion (RRF). RRF scores documents based on their ranking in multiple lists: $RRF(doc) = \sum \frac{1}{k + rank_i}$.
+
+### Consequences
+- **Positive:** We achieve significantly better recall, particularly for enterprise jargon, specific IDs, and exact phrasing, while maintaining the semantic flexibility of vector search. RRF is robust and requires no training or complex tuning (unlike weighted sums).
+- **Negative:** Executing two searches and fusing the results adds slight latency to the retrieval path and requires maintaining both dense vectors and an inverted index in the database.
+
+---
+
+## ADR-007: LLM-based Reranker over Cross-Encoder
+
+**Status**: Accepted  
+**Date**: 2026-10-02  
+
+### Context
+A two-stage retrieval pipeline requires a reranker to improve the precision of the initially recalled documents. Traditional cross-encoders (like those from sentence-transformers) provide excellent reranking but require heavyweight dependencies like PyTorch, roughly ~2GB in footprint, and dedicated compute (often GPUs) to run efficiently.
+
+### Decision
+We will use an LLM-based reranker using a fast, cheap "flash" model (e.g., Gemini 1.5 Flash or Claude 3 Haiku) rather than a local cross-encoder. The LLM will be prompted to score or reorder the retrieved context chunks based on relevance to the query.
+
+### Consequences
+- **Positive:** We maintain a zero-heavy-dependency footprint, keeping the application lightweight and easy to deploy. It is also trivially easy to swap out the underlying model via our existing provider factory without changing infrastructure.
+- **Negative:** We incur higher latency and token costs per query compared to a localized cross-encoder, as we must send the query and context to a third-party API for reranking.
+
+---
+
+## ADR-008: Refusal-Path Design
+
+**Status**: Accepted  
+**Date**: 2026-10-02  
+
+### Context
+RAG systems are highly prone to hallucination when they attempt to answer a query using retrieved context that is irrelevant or insufficient. If the LLM is forced to respond without good grounding material, it will fall back on its pre-trained knowledge, violating the primary constraint of an enterprise RAG system.
+
+### Decision
+We will implement a strict refusal path using a combination of a similarity floor (a minimum relevance score threshold for retrieved documents) and an empty retrieval check. If no documents meet the threshold, or if the retrieval stage returns empty, the system will short-circuit and return a canned refusal response without making a generation call to the LLM.
+
+### Consequences
+- **Positive:** This drastically reduces ungrounded hallucinations by preventing the LLM from attempting to answer unanswerable queries. It also saves LLM token costs on guaranteed-bad queries.
+- **Negative:** Valid queries might be refused if the similarity threshold is set too high or if the retrieval system underperforms. The threshold will require careful tuning and evaluation in subsequent phases.

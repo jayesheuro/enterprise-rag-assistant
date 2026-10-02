@@ -69,12 +69,13 @@ class ChunkingConfig(BaseModel):
 
 class RetrievalConfig(BaseModel):
     """Vector search and retrieval parameters."""
-
-    top_k: int = Field(default=5, description="Number of results to return")
-    similarity_threshold: float = Field(
-        default=0.7, description="Minimum similarity score (0.0-1.0)"
-    )
-    reranking_enabled: bool = Field(default=False, description="Apply reranking to results")
+    top_k: int = Field(default=12, description="Number of initial candidates to retrieve")
+    final_k: int = Field(default=4, description="Number of results after reranking")
+    similarity_threshold: float = Field(default=0.01, description="Minimum similarity score — below this, return empty retrieval. Note: RRF scores with k=60 range ~0.01-0.03.")
+    mode: str = Field(default="hybrid", description="Retrieval mode: vector | hybrid")
+    reranker: str = Field(default="none", description="Reranking strategy: none | llm")
+    context_budget_ratio: float = Field(default=0.6, description="Max fraction of model context window for retrieved chunks")
+    max_query_length: int = Field(default=1000, description="Maximum query length in characters")
 
 
 class ProviderConfig(BaseModel):

@@ -15,9 +15,17 @@ chunking:
 
 # Retrieval settings
 retrieval:
-    # Number of top results to return from vector search
-    top_k: 5
+    # Number of initial candidates to retrieve
+    top_k: 12
+    # Number of results after reranking
+    final_k: 4
     # Minimum similarity score (0.0-1.0) to include a result
-    similarity_threshold: 0.7
-    # Whether to apply reranking to initial results
-    reranking_enabled: false
+    similarity_threshold: 0.01
+    # Retrieval mode: vector | hybrid
+    mode: hybrid
+    # Reranking strategy: none | llm
+    reranker: none
+    # Max fraction of model context window for retrieved chunks
+    context_budget_ratio: 0.6
+    # Maximum query length in characters
+    max_query_length: 1000

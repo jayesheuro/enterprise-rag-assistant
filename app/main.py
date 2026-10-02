@@ -43,9 +43,9 @@ def create_app() -> FastAPI:
     # ── Register routers ────────────────────────────────────────────────
     app.include_router(health.router, tags=["health"])
     
-    from app.api.routes import ingest
+    from app.api.routes import ingest, chat
     app.include_router(ingest.router)
-
+    app.include_router(chat.router)
     # ── Exception handlers ──────────────────────────────────────────────
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:

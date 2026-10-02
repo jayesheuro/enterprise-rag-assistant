@@ -164,3 +164,37 @@ class VectorStore:
             "doc_count": doc_count,
             "embedding_model": embedding_model,
         }
+
+    def vector_search(self, query_vector: list[float], top_k: int = 10) -> list[dict]:
+        """Search by vector similarity. Returns list of dicts with chunk fields + _distance."""
+        if not self.table_exists():
+            return []
+        tbl = self.db.open_table(self.table_name)
+        results = tbl.search(query_vector).limit(top_k).to_arrow()
+        return self._arrow_to_dicts(results)
+
+    def fts_search(self, query_text: str, top_k: int = 10) -> list[dict]:
+        """Full-text search. Returns list of dicts with chunk fields + _score."""
+        if not self.table_exists():
+            return []
+        tbl = self.db.open_table(self.table_name)
+        try:
+            results = tbl.search(query_text, query_type='fts').limit(top_k).to_arrow()
+            return self._arrow_to_dicts(results)
+        except Exception as e:
+            logger.warning(f"FTS search failed (index may not exist): {e}")
+            return []
+
+    def _arrow_to_dicts(self, arrow_table) -> list[dict]:
+        """Convert a PyArrow table to a list of dicts."""
+        if arrow_table is None or len(arrow_table) == 0:
+            return []
+        columns = arrow_table.column_names
+        rows = []
+        for i in range(len(arrow_table)):
+            row = {}
+            for col in columns:
+                val = arrow_table[col][i].as_py()
+                row[col] = val
+            rows.append(row)
+        return rows

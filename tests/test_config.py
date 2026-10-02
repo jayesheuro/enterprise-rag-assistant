@@ -27,13 +27,13 @@ class TestChunkingConfig:
         config = ChunkingConfig()
         assert config.chunk_size == 1000
         assert config.chunk_overlap == 200
-        assert config.strategy == "fixed"
+        assert config.strategy == "recursive"
 
     def test_custom_values(self):
-        config = ChunkingConfig(chunk_size=500, chunk_overlap=100, strategy="semantic")
+        config = ChunkingConfig(chunk_size=500, chunk_overlap=100, strategy="markdown_aware")
         assert config.chunk_size == 500
         assert config.chunk_overlap == 100
-        assert config.strategy == "semantic"
+        assert config.strategy == "markdown_aware"
 
 
 class TestRetrievalConfig:
@@ -41,15 +41,18 @@ class TestRetrievalConfig:
 
     def test_defaults(self):
         config = RetrievalConfig()
-        assert config.top_k == 5
-        assert config.similarity_threshold == 0.7
-        assert config.reranking_enabled is False
+        assert config.top_k == 12
+        assert config.final_k == 4
+        assert config.similarity_threshold == 0.01
+        assert config.mode == "hybrid"
+        assert config.reranker == "none"
 
     def test_custom_values(self):
-        config = RetrievalConfig(top_k=10, similarity_threshold=0.5, reranking_enabled=True)
+        config = RetrievalConfig(top_k=10, similarity_threshold=0.5, reranker="llm", mode="vector")
         assert config.top_k == 10
         assert config.similarity_threshold == 0.5
-        assert config.reranking_enabled is True
+        assert config.reranker == "llm"
+        assert config.mode == "vector"
 
 
 class TestProviderConfig:
@@ -77,9 +80,13 @@ class TestProviderConfig:
 class TestSecretsConfig:
     """Tests for secrets loading (without real .env)."""
 
-    def test_defaults_when_no_env(self):
-        """Secrets should default to empty strings when .env is absent."""
-        config = SecretsConfig()
+    def test_defaults_when_no_env(self, monkeypatch):
+        """Secrets should default to empty strings when env vars are absent."""
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+        monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+        # Patch the env_file to a nonexistent path so .env is not loaded
+        config = SecretsConfig(_env_file="nonexistent.env")
         assert config.google_api_key == ""
         assert config.aws_access_key_id == ""
 
