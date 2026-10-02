@@ -86,7 +86,7 @@ class TestSecretsConfig:
         monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
         monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
         # Patch the env_file to a nonexistent path so .env is not loaded
-        config = SecretsConfig(_env_file="nonexistent.env")
+        config = SecretsConfig(_env_file="nonexistent.env")  # type: ignore
         assert config.google_api_key == ""
         assert config.aws_access_key_id == ""
 
