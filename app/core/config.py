@@ -64,7 +64,7 @@ class ChunkingConfig(BaseModel):
 
     chunk_size: int = Field(default=1000, description="Characters per chunk")
     chunk_overlap: int = Field(default=200, description="Overlap between chunks")
-    strategy: str = Field(default="fixed", description="Chunking strategy: fixed | semantic")
+    strategy: str = Field(default="recursive", description="Chunking strategy: recursive | markdown_aware")
 
 
 class RetrievalConfig(BaseModel):

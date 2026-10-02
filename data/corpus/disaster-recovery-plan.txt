@@ -1,0 +1,50 @@
+Title: Disaster Recovery Plan
+Version: 4.1
+Last Updated: 2024-05-15
+Owner: IT Operations
+
+MERIDIAN TECHNOLOGIES INC. - DISASTER RECOVERY PLAN
+
+PURPOSE
+This document outlines the disaster recovery (DR) procedures for Meridian Technologies to ensure business continuity in the event of a catastrophic failure.
+
+--------------------------------------------------------------------------------
+RECOVERY OBJECTIVES
+
+Meridian systems are categorized into Tiers based on criticality.
+
+TIER 1 (Mission Critical): Customer-facing web application, Core Database, Authentication Service (Okta).
+- Recovery Time Objective (RTO): 4 hours
+- Recovery Point Objective (RPO): 15 minutes
+
+TIER 2 (Business Important): Internal billing systems, Jira, Confluence, CI/CD pipelines.
+- Recovery Time Objective (RTO): 24 hours
+- Recovery Point Objective (RPO): 1 hour
+
+TIER 3 (Non-Critical): Data warehouse (analytics), internal testing environments.
+- Recovery Time Objective (RTO): 72 hours
+- Recovery Point Objective (RPO): 24 hours
+
+--------------------------------------------------------------------------------
+BACKUP SCHEDULES
+
+- Core Database (PostgreSQL): Continuous archiving of WAL logs (satisfies 15-minute RPO). Full snapshots taken every 12 hours.
+- Virtual Machines/EC2 Instances: Daily snapshots at 02:00 AM UTC. Retained for 30 days.
+- S3 Buckets containing configuration: Versioning enabled. Replicated to DR region (us-west-2).
+
+All backups must be encrypted at rest using AWS KMS keys managed by InfoSec.
+
+--------------------------------------------------------------------------------
+FAILOVER PROCEDURES
+
+In the event of a total failure of the primary AWS region (us-east-1):
+1. The VP of Engineering or designated Incident Commander officially declares a DR event.
+2. Operations executes the Terraform DR playbook to provision the underlying infrastructure in us-west-2.
+3. Database backups are restored in us-west-2.
+4. Route53 DNS records are updated to point traffic to the new us-west-2 load balancers.
+5. Quality Assurance team performs a smoke test of the recovered environment.
+
+--------------------------------------------------------------------------------
+ANNUAL TESTING
+
+A full disaster recovery tabletop exercise and simulated failover must be conducted annually, no later than October 31st. Results of the DR test must be documented and submitted to the compliance committee.

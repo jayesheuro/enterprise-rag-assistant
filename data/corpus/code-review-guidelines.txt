@@ -1,0 +1,44 @@
+Title: Code Review Guidelines
+Version: 1.1
+Last Updated: 2023-08-10
+Owner: Engineering Operations
+
+MERIDIAN TECHNOLOGIES INC. - CODE REVIEW GUIDELINES
+
+INTRODUCTION
+This document defines the requirements and expectations for all code reviews at Meridian. Every line of code destined for production must go through this process.
+
+--------------------------------------------------------------------------------
+PULL REQUEST (PR) REQUIREMENTS
+
+Before opening a PR, the author must ensure:
+- The PR description clearly explains the "why" and "what" of the change. Include a link to the Jira ticket.
+- The PR is appropriately sized. PRs should be no larger than 400 lines of code (excluding auto-generated files or lock files). Larger changes must be broken down.
+- All unit and integration tests pass locally.
+- The code passes the automated linter checks.
+
+--------------------------------------------------------------------------------
+REVIEW CHECKLIST
+
+Reviewers must evaluate the code against the following criteria:
+1. Functionality: Does the code do what it's supposed to do? Does it handle edge cases?
+2. Security: Does the code introduce any vulnerabilities (e.g., SQL injection, XSS)? Does it follow the Information Security Policy?
+3. Architecture: Does the code adhere to the Cloud Architecture Guidelines and API Design Standards?
+4. Maintainability: Is the code readable? Are the variables well-named? Is complex logic documented?
+5. Testing: Are there adequate tests for the new functionality?
+
+--------------------------------------------------------------------------------
+APPROVAL RULES
+
+- All PRs require at least TWO approvals from engineers on the owning team.
+- If the PR modifies core infrastructure or database schemas, one of the approvals must be from a Staff Engineer or higher.
+- Self-approval is strictly prohibited and technically enforced in GitHub.
+- Authors must not merge their own code unless explicitly instructed by the reviewer.
+
+--------------------------------------------------------------------------------
+TURNAROUND SERVICE LEVEL AGREEMENTS (SLAs)
+
+Code reviews are a high-priority task.
+- Initial Review: A reviewer should provide initial feedback or approve the PR within 24 hours of it being assigned.
+- Re-review: After the author pushes fixes based on feedback, the reviewer should re-review within 12 hours.
+- If an engineer is overloaded and cannot meet these SLAs, they must immediately re-assign the PR to another team member.

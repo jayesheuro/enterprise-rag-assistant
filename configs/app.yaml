@@ -10,8 +10,8 @@ chunking:
     chunk_size: 1000
     # Overlap between consecutive chunks (helps preserve context at boundaries)
     chunk_overlap: 200
-    # Chunking strategy: fixed | semantic (semantic added in later phases)
-    strategy: fixed
+    # Chunking strategy: recursive | markdown_aware
+    strategy: recursive
 
 # Retrieval settings
 retrieval:

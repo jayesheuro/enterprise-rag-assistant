@@ -48,3 +48,39 @@ We will use YAML files for all non-sensitive application and provider tunables, 
 ### Consequences
 - **Positive:** We strictly adhere to 12-Factor App principles. The risk of accidental secret exposure in git history is heavily mitigated. Application behavior can be heavily modified by non-engineers via simple YAML edits. Pydantic ensures the configuration is type-safe.
 - **Negative:** Developers must maintain two separate configuration mechanisms and remember which variables belong where, increasing the cognitive load slightly during setup.
+
+
+## ADR-004: Chunking Strategy Design
+
+**Status**: Accepted  
+**Date**: 2026-09-27  
+
+### Context
+Documents must be split into smaller segments (chunks) before being embedded and stored in the vector database. Feeding entire documents into an LLM exceeds context limits and dilutes semantic meaning during embedding. We need to decide on a chunking strategy that balances implementation complexity with retrieval accuracy for our primarily text-based corpus (Markdown, plain text, and PDFs).
+
+### Decision
+We will default to **Recursive Character Chunking** (via LangChain's `RecursiveCharacterTextSplitter` algorithm or custom equivalent) as our primary strategy, rather than purely fixed-size or semantic chunking. We will fallback to Markdown-Aware structure chunking for highly structured internal documentation when explicitly configured.
+
+### Consequences
+- **Positive:** Recursive chunking attempts to respect linguistic boundaries (paragraphs, then sentences, then words), preventing the mid-sentence splits common in fixed-size chunking. This preserves context and semantic integrity.
+- **Negative:** It is more computationally intensive than fixed-size chunking and requires tuning parameters (chunk size and overlap) based on the specific dataset. It may still occasionally break structure in complex tables or nested lists.
+
+---
+
+## ADR-005: Idempotent Upsert Design
+
+**Status**: Accepted  
+**Date**: 2026-09-27  
+
+### Context
+The ingestion pipeline will be run repeatedly as the document corpus evolves. If the pipeline is not idempotent, re-running it will result in duplicate chunks in the vector database, skewing retrieval results and wasting storage. We need a robust mechanism to handle document updates and deletions without requiring a full database wipe on every run.
+
+### Decision
+We will implement an idempotent ingestion design using a **Hash-Based Stable ID** and a **Delete-Then-Insert** pattern. 
+1. We will generate a unique `doc_id` for each file by hashing its absolute path and content (e.g., SHA-256).
+2. During ingestion, we will query the vector database for existing `doc_id`s.
+3. If a document has changed (the hash differs) or is new, we will delete any existing chunks associated with the file path, and then insert the new chunks. 
+
+### Consequences
+- **Positive:** The vector database will perfectly mirror the state of the local file system corpus. The pipeline can be run safely on a cron job or webhook trigger without fear of data duplication. 
+- **Negative:** Hashing large files adds overhead to the ingestion process. Deleting and re-inserting documents on minor changes is slightly less efficient than a diff-based patch, but far simpler to implement and debug.

@@ -48,3 +48,37 @@ class ProviderAuthError(ProviderError):
             provider=provider,
         )
 
+
+class IngestionError(AppError):
+    """General error during document ingestion."""
+
+    def __init__(self, message: str, status_code: int = 500) -> None:
+        super().__init__(message, status_code=status_code)
+
+
+class UnsupportedFileTypeError(IngestionError):
+    """Raised when an unsupported file type is ingested."""
+
+    def __init__(self, extension: str) -> None:
+        super().__init__(
+            f"Unsupported file extension: '{extension}'. "
+            f"Supported types: .txt, .md, .pdf",
+            status_code=400,
+        )
+
+
+class EmbeddingModelMismatchError(IngestionError):
+    """Raised when appending to a vector store with a different embedding model.
+
+    Mixed embeddings in one table produce meaningless similarity scores because
+    different models map text to incompatible vector spaces.
+    """
+
+    def __init__(self, current_model: str, new_model: str) -> None:
+        super().__init__(
+            f"Embedding model mismatch: table uses '{current_model}', "
+            f"but '{new_model}' was requested. You must either re-ingest with "
+            f"--reset to switch models, or keep using '{current_model}'.",
+            status_code=409,
+        )
+
