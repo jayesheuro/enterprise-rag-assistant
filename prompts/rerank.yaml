@@ -2,7 +2,7 @@ name: rerank
 version: "1.0.0"
 changelog:
   - version: "1.0.0"
-    date: "2024-01-01"
+    date: "2026-10-04"
     changes: "Initial reranking prompt"
 template_vars:
   - chunks
