@@ -24,7 +24,7 @@ retrieval:
     # Retrieval mode: vector | hybrid
     mode: hybrid
     # Reranking strategy: none | llm
-    reranker: none
+    reranker: llm
     # Max fraction of model context window for retrieved chunks
     context_budget_ratio: 0.6
     # Maximum query length in characters
