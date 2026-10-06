@@ -134,3 +134,4 @@ class EvalReport(BaseModel):
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             return cls(**data)
+

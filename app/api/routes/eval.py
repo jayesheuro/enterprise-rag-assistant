@@ -41,3 +41,4 @@ async def get_report(run_id: str) -> dict:
             return json.load(f)
     except json.JSONDecodeError:
         raise HTTPException(status_code=500, detail="Report file is corrupted")
+

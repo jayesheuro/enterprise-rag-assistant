@@ -1,5 +1,5 @@
 # Evaluation Report: run_C
-**Timestamp:** 2026-10-06T14:16:53.463894Z  
+**Timestamp:** 2026-10-06T14:23:12.265468Z  
 **Dataset Version:** v1  
 **Mode:** Retrieval-Only  
 **Success Rate:** 30/30
@@ -41,4 +41,4 @@
 | hit_rate@4 | 0.8333 |
 | recall@4 | 1.0000 |
 | mrr | 0.8000 |
-| ndcg@4 | 1.6122 |
+| ndcg@4 | 1.6399 |
