@@ -3,7 +3,7 @@
 # Requires GOOGLE_API_KEY in .env
 
 # Chat/generation model
-model: gemini-3.8-flash
+model: gemini-3.5-flash
 
 # Embedding model (3072 dimensions)
 embedding_model: gemini-embedding-001

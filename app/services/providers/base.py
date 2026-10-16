@@ -75,8 +75,8 @@ class LLMResponse(BaseModel):
 # Does NOT retry on auth errors (those fail immediately).
 _provider_retry = retry(
     retry=retry_if_exception_type(ProviderError),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=10),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=2, max=30),
     reraise=True,
 )
 

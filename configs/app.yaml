@@ -29,3 +29,12 @@ retrieval:
     context_budget_ratio: 0.6
     # Maximum query length in characters
     max_query_length: 1000
+
+# MLflow experiment tracking
+mlflow:
+    # Enable/disable MLflow tracking (gracefully degrades when disabled)
+    enabled: true
+    # Tracking URI - sqlite for local dev, can be changed for remote
+    tracking_uri: "sqlite:///mlflow.db"
+    # Experiment name for eval runs
+    experiment_name: "rag-eval"

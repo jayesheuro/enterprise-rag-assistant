@@ -21,6 +21,7 @@ from ragas import evaluate
 from ragas.embeddings import BaseRagasEmbeddings
 from ragas.llms import BaseRagasLLM
 from ragas.metrics import answer_relevancy, context_precision, context_recall, faithfulness
+from ragas.run_config import RunConfig
 
 from app.core.config import AppConfig
 from app.core.logging import get_logger
@@ -134,22 +135,40 @@ class RagasRunner:
         dataset = Dataset.from_dict(data)
 
         try:
+            run_cfg = RunConfig(max_workers=1, timeout=180, max_wait=60)
             result = evaluate(
                 dataset=dataset,
                 metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
                 llm=self.llm_wrapper,
-                embeddings=self.embeddings_wrapper
+                embeddings=self.embeddings_wrapper,
+                run_config=run_cfg,
             )
+
+            def _to_float(val: Any) -> float:
+                if val is None:
+                    return 0.0
+                try:
+                    f = float(val)
+                    return 0.0 if (f != f) else f  # check NaN
+                except (ValueError, TypeError):
+                    return 0.0
 
             # In Ragas 0.4.x, evaluate returns EvaluationResult which does not have .items()
             # We can use its __getitem__ which returns a list of scores for that metric
             if hasattr(result, "_repr_dict"):
                 # Use the internal representation dict which has the mean scores
-                return {str(k): float(v) for k, v in getattr(result, "_repr_dict").items()}
+                return {str(k): _to_float(v) for k, v in getattr(result, "_repr_dict").items()}
 
             # Fallback for strict typing if _repr_dict is hidden
-            metrics_names = ["faithfulness", "answer_relevancy", "context_precision", "context_recall"]
-            return {name: float(getattr(result, "__getitem__")(name)[0]) for name in metrics_names}
+            metrics_names = [
+                "faithfulness",
+                "answer_relevancy",
+                "context_precision",
+                "context_recall",
+            ]
+            return {
+                name: _to_float(getattr(result, "__getitem__")(name)[0]) for name in metrics_names
+            }
 
         except Exception as e:
             logger.error(f"Error in RAGAS evaluation: {e}")
@@ -166,7 +185,9 @@ def compute_refusal_accuracy(answer: str, is_out_of_scope: bool) -> float:
     Computes accuracy of refusal.
     Returns 1.0 if correct behavior, 0.0 otherwise.
     """
-    refusal_phrase = "I don't have enough information in the available documents to answer this question."
+    refusal_phrase = (
+        "I don't have enough information in the available documents to answer this question."
+    )
     did_refuse = refusal_phrase in answer
 
     if is_out_of_scope:

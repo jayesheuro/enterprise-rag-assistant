@@ -20,7 +20,6 @@ import yaml
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 # ── Path constants ──────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -92,6 +91,12 @@ class ProviderConfig(BaseModel):
     region: str | None = Field(default=None, description="AWS region for Bedrock")
 
 
+class MLflowConfig(BaseModel):
+    enabled: bool = Field(default=False, description="Enable MLflow tracking")
+    tracking_uri: str = Field(default="sqlite:///mlflow.db", description="MLflow tracking URI")
+    experiment_name: str = Field(default="rag-eval", description="MLflow experiment name")
+
+
 # ── Main application config ────────────────────────────────────────────────
 
 class AppConfig(BaseModel):
@@ -106,6 +111,7 @@ class AppConfig(BaseModel):
     secrets: SecretsConfig = Field(
         default_factory=SecretsConfig, description="Secrets loaded from .env"
     )
+    mlflow: MLflowConfig = Field(default_factory=MLflowConfig)
 
 
 # ── Loaders ─────────────────────────────────────────────────────────────────
@@ -143,6 +149,7 @@ def load_app_config() -> AppConfig:
     # 5. Build chunking and retrieval configs
     chunking = ChunkingConfig(**app_yaml.get("chunking", {}))
     retrieval = RetrievalConfig(**app_yaml.get("retrieval", {}))
+    mlflow_config = MLflowConfig(**app_yaml.get("mlflow", {}))
 
     return AppConfig(
         provider=provider_name,
@@ -150,6 +157,7 @@ def load_app_config() -> AppConfig:
         retrieval=retrieval,
         provider_config=provider_config,
         secrets=secrets,
+        mlflow=mlflow_config,
     )
 
 

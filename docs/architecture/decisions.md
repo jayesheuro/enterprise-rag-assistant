@@ -237,3 +237,55 @@ We will implement a sequential evaluation runner with exponential backoff and JS
 
 - **Positive:** We can execute full evaluation runs on rate-limited free tiers without wasting time or tokens restarting from scratch.
 - **Negative:** The evaluation runner code is slightly more complex than a naive parallel loop, and sequential execution is slower than batching.
+---
+
+## ADR-013: MLflow for Prompt Registry and Eval Tracking
+
+**Status**: Accepted  
+**Date**: 2026-10-08
+
+### Context
+As we iterate on prompts (e.g., to reduce hallucinations) and system parameters (chunk size, top-k), we need a reliable way to compare different evaluation runs and trace which prompt version produced which result. Without an experiment tracker, results are scattered across local JSON files, making A/B comparisons difficult.
+
+### Decision
+We will use MLflow as our local LLMOps tracking tool. It will serve two purposes:
+1. **Prompt Registry**: Versioning and storing our prompt templates.
+2. **Experiment Tracking**: Logging the parameters (config), metrics (retrieval/ragas scores), and artifacts (reports) for every evaluation run.
+
+### Consequences
+- **Positive:** We gain a powerful UI to compare runs side-by-side and a structured repository for our prompts, treating them as versioned ML artifacts.
+- **Negative:** Adds `mlflow` as a dependency, which is relatively heavy.
+
+---
+
+## ADR-014: "Files as Truth, Registry Mirrors" Pattern
+
+**Status**: Accepted  
+**Date**: 2026-10-08
+
+### Context
+When using a Prompt Registry, applications can either fetch prompts dynamically at runtime from the registry via API, or keep them static in the codebase.
+
+### Decision
+We will adopt a "Files as Truth, Registry Mirrors" pattern. Prompts are authored and versioned in `prompts/*.yaml` files in the git repository. At runtime, the application reads these files directly. A background script (`sync_prompts.py`) registers any changes into the MLflow Prompt Registry for tracking purposes.
+
+### Consequences
+- **Positive:** Deployment simplicity. The production application does not need network access to MLflow or a running MLflow server. Prompts are fully auditable via standard git pull request workflows.
+- **Negative:** We lose the ability to hot-swap prompts in production without a code deployment (though this is often desirable for stability).
+
+---
+
+## ADR-015: SQLite Backend for MLflow with Graceful Degradation
+
+**Status**: Accepted  
+**Date**: 2026-10-08
+
+### Context
+MLflow needs a backend store for tracking runs. The default file-based store does not support complex querying or metric comparison in the UI. Furthermore, since MLflow is a dev-tool, we must ensure the application doesn't crash in production if MLflow is missing.
+
+### Decision
+We will use `sqlite:///mlflow.db` as the local tracking URI. Additionally, the tracking integration (`MLflowTracker`) will be wrapped in a factory that falls back to a `NoOpTracker` if the `mlflow` package is uninstalled or explicitly disabled via configuration.
+
+### Consequences
+- **Positive:** Full MLflow UI capabilities (compare runs, filter by metrics) work locally. The application remains highly resilient; it will run perfectly in a lightweight production container without MLflow installed.
+- **Negative:** The SQLite DB is local to the developer's machine. For team collaboration, this would eventually need to be migrated to a hosted MLflow server (e.g., Databricks or a shared Postgres instance).

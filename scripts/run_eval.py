@@ -11,7 +11,6 @@ Usage:
 import argparse
 import asyncio
 import json
-import os
 import sys
 import time
 from datetime import datetime
@@ -24,48 +23,68 @@ from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
 from app.services.evaluation.dataset import GoldenDataset, QuestionType
 from app.services.evaluation.report import EvalReport, QuestionResult
-from app.services.evaluation.retrieval_metrics import compute_retrieval_metrics, aggregate_metrics
+from app.services.evaluation.retrieval_metrics import aggregate_metrics, compute_retrieval_metrics
+from app.services.generation.prompt_builder import load_prompt
 from app.services.generation.rag_chain import RAGChain
 from app.services.providers.factory import create_embedder, create_llm
 from app.services.retrieval.reranker import get_reranker
 from app.services.retrieval.retriever import Retriever
 from app.services.retrieval.vector_store import VectorStore
-from app.services.generation.prompt_builder import load_prompt
+from app.services.tracking.mlflow_tracker import get_tracker
 
 # Try importing RagasRunner, gracefully degrade if missing
 try:
     from app.services.evaluation.ragas_runner import RagasRunner, compute_refusal_accuracy
     HAS_RAGAS = True
 except ImportError:
+    RagasRunner = None  # type: ignore
+    compute_refusal_accuracy = None  # type: ignore
     HAS_RAGAS = False
 
 logger = get_logger(__name__)
 
 
 class EvalRunner:
-    def __init__(self, dataset_path: str, run_id: str, retrieval_only: bool = False):
+    def __init__(
+        self,
+        dataset_path: str,
+        run_id: str,
+        retrieval_only: bool = False,
+        limit: int | None = None,
+    ):
         self.dataset = GoldenDataset.load(dataset_path)
+        if limit is not None and 0 < limit < self.dataset.size:
+            step = max(1, round(self.dataset.size / limit))
+            sampled = self.dataset.questions[::step][:limit]
+            orig_size = self.dataset.size
+            self.dataset.questions = sampled
+            logger.info(
+                f"Sampled {len(self.dataset.questions)} questions out of {orig_size} (stratified)"
+            )
         self.run_id = run_id
         self.retrieval_only = retrieval_only
-        
+
         self.checkpoint_path = Path(f"eval/reports/{run_id}_checkpoint.json")
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         self.config = get_settings()
-        
+        self.tracker = get_tracker(self.config)
+
         # Init components
         self.embedder = create_embedder(self.config)
         self.vector_store = VectorStore("data/lancedb")
         self.retriever = Retriever(self.embedder, self.vector_store, self.config.retrieval)
-        
+
         if not self.retrieval_only or self.config.retrieval.reranker == "llm":
             self.llm = create_llm(self.config)
             self.reranker = get_reranker(self.config.retrieval, self.llm)
-            
+
         if not self.retrieval_only:
-            self.rag_chain = RAGChain(self.llm, self.retriever, self.reranker, self.config.retrieval)
+            self.rag_chain = RAGChain(
+                self.llm, self.retriever, self.reranker, self.config.retrieval
+            )
             if HAS_RAGAS:
-                self.ragas_runner = RagasRunner(self.config)
+                self.ragas_runner = RagasRunner(self.config)  # type: ignore
             else:
                 logger.warning("RagasRunner not available. RAGAS metrics will be skipped.")
 
@@ -73,8 +92,8 @@ class EvalRunner:
         """Load previously completed questions from checkpoint."""
         if not self.checkpoint_path.exists():
             return {}
-            
-        with open(self.checkpoint_path, "r", encoding="utf-8") as f:
+
+        with open(self.checkpoint_path, encoding="utf-8") as f:
             data = json.load(f)
             return data
 
@@ -94,32 +113,33 @@ class EvalRunner:
             logger.info(f"Resuming from checkpoint with {len(completed)} completed questions.")
 
         results_list = []
-        
+
         for q in self.dataset.questions:
             if q.question_id in completed:
                 results_list.append(QuestionResult(**completed[q.question_id]))
                 continue
-                
+
             logger.info(f"Evaluating {q.question_id}: {q.question}")
-            
+
             try:
                 # 1. Retrieval
                 retrieved_chunks = self.retriever.retrieve(q.question)
-                
+
                 # Rerank if configured
                 if hasattr(self, 'reranker') and self.reranker:
                     retrieved_chunks = self.reranker.rerank(q.question, retrieved_chunks)
-                    
+
                 import os
-                retrieved_doc_ids = [os.path.basename(c.source) for c in retrieved_chunks] # 'source' field holds the filename
-                
+                # 'source' field holds the filename
+                retrieved_doc_ids = [os.path.basename(c.source) for c in retrieved_chunks]
+
                 # Retrieval Metrics
                 retrieval_metrics = compute_retrieval_metrics(
                     retrieved_doc_ids=retrieved_doc_ids,
                     expected_doc_ids=q.expected_source_docs,
                     k=self.config.retrieval.final_k
                 )
-                
+
                 result = QuestionResult(
                     question_id=q.question_id,
                     question=q.question,
@@ -131,19 +151,23 @@ class EvalRunner:
                     expected_doc_ids=q.expected_source_docs,
                     retrieval_metrics=retrieval_metrics
                 )
-                
+
                 # 2. Generation & RAGAS
                 if not self.retrieval_only:
-                    rag_response = self.rag_chain.answer(q.question)
+                    rag_response = self.rag_chain.generate_from_chunks(
+                        q.question, retrieved_chunks
+                    )
                     result.answer = rag_response.answer
                     result.timings = rag_response.timings
-                    
+
                     # Refusal Accuracy
                     is_out_of_scope = (q.question_type == QuestionType.OUT_OF_SCOPE)
-                    if HAS_RAGAS:
-                        result.refusal_accuracy = compute_refusal_accuracy(result.answer, is_out_of_scope)
-                    
-                    # RAGAS metrics (skip for out of scope since ground truth is empty and behavior is refusal)
+                    if HAS_RAGAS and compute_refusal_accuracy is not None:
+                        result.refusal_accuracy = compute_refusal_accuracy(
+                            result.answer, is_out_of_scope
+                        )
+
+                    # RAGAS metrics (skip out of scope: ground truth is empty, behavior is refusal)
                     if HAS_RAGAS and not is_out_of_scope:
                         logger.info(f"Computing RAGAS metrics for {q.question_id}...")
                         ragas_metrics = self.ragas_runner.evaluate_question(
@@ -153,14 +177,14 @@ class EvalRunner:
                             ground_truth=q.ground_truth
                         )
                         result.ragas_metrics = ragas_metrics
-                
+
                 completed[q.question_id] = result.model_dump()
                 self.save_checkpoint(completed)
                 results_list.append(result)
-                
+
                 # Small sleep to prevent aggressive rate limits
-                time.sleep(1)
-                
+                time.sleep(2)
+
             except Exception as e:
                 logger.error(f"Error evaluating {q.question_id}: {e}")
                 import traceback
@@ -171,30 +195,32 @@ class EvalRunner:
         # Generate Report
         if len(results_list) > 0:
             self._generate_report(results_list)
-            
+
         if len(results_list) == self.dataset.size:
             logger.info("Evaluation complete. Deleting checkpoint.")
             if self.checkpoint_path.exists():
                 self.checkpoint_path.unlink()
 
     def _generate_report(self, results: list[QuestionResult]):
-        successful_retrieval = [r.retrieval_metrics for r in results if r.retrieval_metrics and not r.error]
+        successful_retrieval = [
+            r.retrieval_metrics for r in results if r.retrieval_metrics and not r.error
+        ]
         successful_ragas = [r.ragas_metrics for r in results if r.ragas_metrics and not r.error]
-        
+
         agg_retrieval = aggregate_metrics(successful_retrieval)
         agg_ragas = aggregate_metrics(successful_ragas)
-        
+
         refusal_acc = 0.0
         if not self.retrieval_only:
             valid_refusals = [r.refusal_accuracy for r in results if not r.error]
             if valid_refusals:
                 refusal_acc = sum(valid_refusals) / len(valid_refusals)
-        
+
         # Capture config snapshot
         config_dict = self.config.model_dump()
         if "secrets" in config_dict:
             del config_dict["secrets"]  # Never snapshot secrets
-            
+
         # Get prompt versions
         try:
             rag_prompt = load_prompt("rag_answer")
@@ -202,7 +228,7 @@ class EvalRunner:
             prompts = {"rag_answer": rag_prompt.version, "rerank": rerank_prompt.version}
         except Exception:
             prompts = {}
-            
+
         report = EvalReport(
             run_id=self.run_id,
             timestamp=datetime.utcnow().isoformat() + "Z",
@@ -217,28 +243,37 @@ class EvalRunner:
             failed_questions=len([r for r in results if r.error]),
             results=results
         )
-        
+
         report.save()
+
+        # Log to MLflow if enabled
+        self.tracker.log_eval_run(report)
 
 
 def main():
     setup_logging()
-    
+
     parser = argparse.ArgumentParser(description="Enterprise RAG Assistant Evaluation Runner")
     parser.add_argument("--dataset", required=True, help="Path to golden dataset JSONL")
-    parser.add_argument("--retrieval-only", action="store_true", help="Run only the retrieval phase")
+    parser.add_argument(
+        "--retrieval-only", action="store_true", help="Run only the retrieval phase"
+    )
     parser.add_argument("--run-id", default=None, help="Optional run ID (defaults to timestamp)")
-    
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Limit number of questions to evaluate (e.g. 15)"
+    )
+
     args = parser.parse_args()
-    
+
     run_id = args.run_id or f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
+
     runner = EvalRunner(
         dataset_path=args.dataset,
         run_id=run_id,
-        retrieval_only=args.retrieval_only
+        retrieval_only=args.retrieval_only,
+        limit=args.limit
     )
-    
+
     asyncio.run(runner.run())
 
 

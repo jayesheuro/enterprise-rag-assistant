@@ -30,6 +30,7 @@ dev = [
     "numpy>=2.4.6",
     "langchain-community>=0.4.2",
     "langchain>=1.4.3",
+    "mlflow>=3.17.0",
 ]
 
 [tool.ruff]
