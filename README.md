@@ -13,7 +13,7 @@
 Most RAG demos stop at "it answers questions." This one **measures** every answer:
 retrieval metrics, RAGAS generation metrics, hallucination gating, and versioned prompts with A/B experiment tracking — all visible in the built-in evaluation lab.
 
-**[🚀 Live Demo →](https://enterprise-rag-assistant.onrender.com)**
+**[🚀 Live Demo →](https://enterprise-rag-assistant-atyr.onrender.com)**
 
 </div>
 
