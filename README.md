@@ -13,7 +13,7 @@
 Most RAG demos stop at "it answers questions." This one **measures** every answer:
 retrieval metrics, RAGAS generation metrics, hallucination gating, and versioned prompts with A/B experiment tracking — all visible in the built-in evaluation lab.
 
-**[🚀 Live Demo →](https://huggingface.co/spaces/jayeshsingh001/enterprise-rag-assistant)**
+**[🚀 Live Demo →](https://enterprise-rag-assistant.onrender.com)**
 
 </div>
 
@@ -107,7 +107,7 @@ flowchart TD
 | Tracking | MLflow (local dev only) | Prompt registry + experiment comparison; gracefully absent in prod |
 | Language | Python 3.11 + Pydantic v2 | Type safety everywhere; Pydantic Settings for config |
 | Packaging | `uv` + `pyproject.toml` | 10× faster than pip; dependency groups (dev vs prod) |
-| Deployment | Docker → Hugging Face Spaces | Free public demo; self-seeding on ephemeral disk |
+| Deployment | Docker → Render.com | Free public container demo; self-seeding on ephemeral disk |
 
 ---
 

@@ -78,18 +78,15 @@ COPY start.sh        ./start.sh
 RUN mkdir -p data/lancedb data/uploads /tmp \
     && chown -R appuser:appuser /app /tmp
 
-# ── Streamlit config — override port for HF Spaces ──────────────────────────
-# HF Spaces expects traffic on port 7860. start.sh passes --server.port 7860
-# but we also patch the toml so any direct `streamlit run` inside the container
-# uses the right port.
-RUN sed -i 's/^port = .*/port = 7860/' /app/.streamlit/config.toml
+# ── Streamlit config — dynamic port support ─────────────────────────────────
+# Remove static port line so start.sh's dynamic --server.port takes precedence
+RUN sed -i '/^port =/d' /app/.streamlit/config.toml
 
 # Make start.sh executable
 RUN chmod +x /app/start.sh
 
 # ── Runtime environment defaults ────────────────────────────────────────────
-# These are safe defaults. Override with HF Space env vars / secrets.
-# GOOGLE_API_KEY must be set as an HF secret — never hard-code it here.
+# These are safe defaults. Override with cloud env vars / secrets.
 ENV PYTHONPATH="/app" \
     PYTHONUNBUFFERED="1" \
     PYTHONDONTWRITEBYTECODE="1" \
@@ -97,19 +94,17 @@ ENV PYTHONPATH="/app" \
     DEMO_MODE="true" \
     DEMO_DAILY_CAP="50" \
     QUOTA_FILE_PATH="/tmp/daily_quota.json" \
-    # Disable MLflow in the container (no mlflow installed in prod deps)
-    # AppConfig reads this from app.yaml; set false here as belt-and-suspenders.
     MLFLOW_TRACKING_URI=""
 
 # Switch to non-root user
 USER appuser
 
-# HF Spaces expects port 7860
-EXPOSE 7860
+# Expose common PaaS ports (HF Spaces: 7860, Render: 10000)
+EXPOSE 7860 10000
 
-# Healthcheck — Streamlit built-in health endpoint on port 7860
+# Healthcheck — Streamlit built-in health endpoint on active port
 HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:7860/_stcore/health || exit 1
+    CMD curl -f http://localhost:${PORT:-7860}/_stcore/health || exit 1
 
 ENTRYPOINT ["/bin/bash", "/app/start.sh"]
 

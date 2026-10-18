@@ -48,15 +48,16 @@ BACKEND_PID=$!
 # Give the backend a moment to bind before Streamlit tries to connect
 sleep 3
 
-# Step 3 — Start Streamlit frontend (foreground, port 7860 for HF Spaces)
-echo "[ui] Starting Streamlit on port 7860..."
+# Step 3 — Start Streamlit frontend (listens on $PORT if set by Render, else 7860)
+STREAMLIT_PORT="${PORT:-7860}"
+echo "[ui] Starting Streamlit on port ${STREAMLIT_PORT}..."
 streamlit run ui/Home.py \
-    --server.port 7860 \
+    --server.port "${STREAMLIT_PORT}" \
     --server.address 0.0.0.0 \
     --server.headless true \
     --browser.gatherUsageStats false \
     --server.fileWatcherType none &
-# Cleanup handler for graceful shutdown on SIGINT/SIGTERM (e.g. Ctrl+C)
+UI_PID=$!
 cleanup() {
     echo "[start.sh] Termination signal received. Stopping services..."
     kill -TERM $BACKEND_PID $UI_PID 2>/dev/null || true

@@ -330,19 +330,19 @@ We will introduce an environment-level toggle `DEMO_MODE=true`. When active:
 
 ---
 
-## ADR-018: Single-Container Architecture for HF Spaces Demo
+## ADR-018: Single-Container Architecture for Free PaaS Demo (Render / HF Spaces)
 
 **Status**: Accepted
 **Date**: 2026-10-18
 
 ### Context
-The standard Docker best practice is one process per container. However, Hugging Face Spaces free tier provides a single container and a single public port (7860). The application requires two processes: a FastAPI backend and a Streamlit frontend. Deploying two containers would require Docker Compose or Kubernetes orchestration — significant operational overhead for a portfolio demo.
+The standard Docker best practice is one process per container. However, free PaaS hosting tiers (such as Render.com and Hugging Face Spaces) provide a single container runtime and route incoming HTTP traffic to a single assigned port (Render assigns `$PORT`, HF Spaces expects 7860). The application requires two processes: a FastAPI backend and a Streamlit frontend. Deploying two containers would require multi-service orchestration — unnecessary operational overhead and cost for a portfolio demo.
 
 ### Decision
-We will run both processes (uvicorn on port 8000 localhost + Streamlit on port 7860 public) in a single container managed by `start.sh`. The backend is not publicly exposed — all external traffic hits Streamlit only, which proxies queries to the backend over localhost HTTP. `wait -n` in `start.sh` ensures the container exits cleanly if either process crashes.
+We will run both processes (uvicorn on port 8000 localhost + Streamlit on the dynamic public `$PORT` with fallback to 7860) in a single container managed by `start.sh`. The backend is not publicly exposed — all external traffic hits Streamlit only, which proxies queries to the backend over localhost HTTP. `wait -n` and a `SIGINT`/`SIGTERM` trap in `start.sh` ensure the container exits cleanly if either process terminates.
 
 ### Consequences
-- **Positive:** Zero orchestration overhead. Works with HF Spaces' single-container, single-port model. Simpler local Docker testing.
+- **Positive:** Zero orchestration overhead. Runs seamlessly across free container hosts (Render.com, HF Spaces, local Docker). Simpler local testing.
 - **Negative:** Violates one-process-per-container convention. Memory contention between both processes limits scaling. Acceptable for a demo; production would use separate ECS Fargate tasks behind an ALB.
 
 ---
