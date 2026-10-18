@@ -27,7 +27,20 @@ if "query_count" not in st.session_state:
 if "latest_telemetry" not in st.session_state:
     st.session_state.latest_telemetry = None
 
+if "global_quota_exhausted" not in st.session_state:
+    st.session_state.global_quota_exhausted = False
+
 DEMO_QUERY_LIMIT = 10
+
+
+def _fetch_global_quota() -> dict | None:
+    """Poll the backend for global daily quota status. Returns None on error."""
+    if not DEMO_MODE:
+        return None
+    try:
+        return client._request("GET", "/chat/quota")
+    except Exception:
+        return None
 
 
 def render_sidebar():
@@ -36,14 +49,31 @@ def render_sidebar():
 
     # Demo Mode Status
     if DEMO_MODE:
-        remaining = max(0, DEMO_QUERY_LIMIT - st.session_state.query_count)
+        session_remaining = max(0, DEMO_QUERY_LIMIT - st.session_state.query_count)
         st.sidebar.info(
             f"🔒 **Demo Mode Active**\n\n"
-            f"Queries used: `{st.session_state.query_count}/{DEMO_QUERY_LIMIT}` "
-            f"({remaining} remaining)"
+            f"Session queries: `{st.session_state.query_count}/{DEMO_QUERY_LIMIT}` "
+            f"({session_remaining} remaining)"
         )
-        if remaining == 0:
-            st.sidebar.error("⚠️ Query limit reached for this session.")
+        if session_remaining == 0:
+            st.sidebar.error("⚠️ Session query limit reached.")
+
+        # Global daily quota from backend
+        global_quota = _fetch_global_quota()
+        if global_quota and global_quota.get("cap") is not None:
+            g_remaining = global_quota.get("remaining", 0)
+            g_count = global_quota.get("count", 0)
+            g_cap = global_quota.get("cap", 0)
+            if global_quota.get("exhausted"):
+                st.sidebar.error(
+                    f"🚦 **Daily demo cap reached** ({g_count}/{g_cap}). "
+                    "Resets at UTC midnight."
+                )
+                st.session_state.global_quota_exhausted = True
+            else:
+                st.sidebar.caption(
+                    f"🌐 Global daily cap: `{g_count}/{g_cap}` ({g_remaining} left)"
+                )
 
     st.sidebar.divider()
 
@@ -173,12 +203,16 @@ def main():
                     render_source_expander(s, i)
 
     # Chat Input Box
-    input_disabled = DEMO_MODE and st.session_state.query_count >= DEMO_QUERY_LIMIT
-    placeholder = (
-        "Ask a question about Meridian internal policies..."
-        if not input_disabled
-        else "Demo query limit reached (10/10). Restart session to continue."
-    )
+    session_exhausted = DEMO_MODE and st.session_state.query_count >= DEMO_QUERY_LIMIT
+    global_exhausted = st.session_state.global_quota_exhausted
+    input_disabled = session_exhausted or global_exhausted
+
+    if global_exhausted:
+        placeholder = "🚦 Daily demo quota reached — clone the repo to run locally!"
+    elif session_exhausted:
+        placeholder = "Demo query limit reached (10/10). Restart session to continue."
+    else:
+        placeholder = "Ask a question about Meridian internal policies..."
 
     query_to_run = None
     user_input = st.chat_input(placeholder=placeholder, disabled=input_disabled)
@@ -188,7 +222,7 @@ def main():
         query_to_run = st.session_state.pop("pending_query")
 
     if query_to_run:
-        # Check demo limit
+        # Check session demo limit (client-side guard)
         if DEMO_MODE and st.session_state.query_count >= DEMO_QUERY_LIMIT:
             st.error("🔒 Query limit reached for this demo session.")
             return
@@ -235,11 +269,20 @@ def main():
                         {"role": "assistant", "content": err_msg, "sources": []}
                     )
                 except APIClientError as e:
-                    err_msg = f"⚠️ **Error:** {e.message}"
-                    st.markdown(err_msg)
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": err_msg, "sources": []}
-                    )
+                    # HTTP 429 = global daily quota exhausted — show friendly CTA
+                    if e.status_code == 429:
+                        quota_msg = e.message
+                        st.info(quota_msg)
+                        st.session_state.global_quota_exhausted = True
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": quota_msg, "sources": []}
+                        )
+                    else:
+                        err_msg = f"⚠️ **Error:** {e.message}"
+                        st.markdown(err_msg)
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": err_msg, "sources": []}
+                        )
                 except Exception as e:
                     err_msg = f"⚠️ **Unexpected Error:** {str(e)}"
                     st.markdown(err_msg)
@@ -253,3 +296,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

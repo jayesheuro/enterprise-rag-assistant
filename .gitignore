@@ -34,12 +34,14 @@ data/lancedb/
 mlruns/
 mlflow.db
 
-# Eval reports (generated)
-eval/reports/*.json
+# Eval reports — JSON and Markdown files are committed (needed for HF Spaces demo dashboard)
+# Checkpoint files (partial eval runs) are still ignored
+eval/reports/*.checkpoint.json
 
 # Learning docs (private - not for GitHub)
 docs/learning/
 docs/question-bank/
+docs/INTERVIEW_PREP.md
 
 # uv
 .python-version

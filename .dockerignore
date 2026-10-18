@@ -1,0 +1,51 @@
+# .dockerignore — keeps Docker build context lean
+# Anything listed here is NOT sent to the Docker daemon during `docker build`
+
+# Python artefacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+.python-version
+
+# Secrets — never bake into image
+.env
+
+# Developer tools
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git history (large, not needed in image)
+.git/
+.gitignore
+
+# LanceDB vector store — re-seeded at runtime; don't bake into image
+data/lancedb/
+
+# MLflow local state — not installed in production image
+mlruns/
+mlflow.db
+
+# Test suite — not needed at runtime
+tests/
+
+# Private docs — not committed to git
+docs/learning/
+docs/question-bank/
+
+# OS noise
+.DS_Store
+Thumbs.db
+*.log
+

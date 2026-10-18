@@ -327,3 +327,54 @@ We will introduce an environment-level toggle `DEMO_MODE=true`. When active:
 - **Positive:** Guarantees infrastructure safety and quota preservation on public demonstration spaces without requiring complex user authentication or database locks.
 - **Negative:** Legitimate portfolio reviewers cannot test live document uploading on the public demo unless they clone and run the repository locally.
 
+
+---
+
+## ADR-018: Single-Container Architecture for HF Spaces Demo
+
+**Status**: Accepted
+**Date**: 2026-10-18
+
+### Context
+The standard Docker best practice is one process per container. However, Hugging Face Spaces free tier provides a single container and a single public port (7860). The application requires two processes: a FastAPI backend and a Streamlit frontend. Deploying two containers would require Docker Compose or Kubernetes orchestration — significant operational overhead for a portfolio demo.
+
+### Decision
+We will run both processes (uvicorn on port 8000 localhost + Streamlit on port 7860 public) in a single container managed by `start.sh`. The backend is not publicly exposed — all external traffic hits Streamlit only, which proxies queries to the backend over localhost HTTP. `wait -n` in `start.sh` ensures the container exits cleanly if either process crashes.
+
+### Consequences
+- **Positive:** Zero orchestration overhead. Works with HF Spaces' single-container, single-port model. Simpler local Docker testing.
+- **Negative:** Violates one-process-per-container convention. Memory contention between both processes limits scaling. Acceptable for a demo; production would use separate ECS Fargate tasks behind an ALB.
+
+---
+
+## ADR-019: Self-Seeding Architecture for Ephemeral Disk
+
+**Status**: Accepted
+**Date**: 2026-10-18
+
+### Context
+HF Spaces free tier resets the container filesystem on every restart. LanceDB stores its index as files on disk (`data/lancedb/`). Without intervention, every container restart would result in an empty vector store, breaking the demo for every visitor after a restart.
+
+### Decision
+We implement a `seed_demo.py` script called at container boot time (before either server starts). It probes LanceDB for existing data; if empty, it runs the full ingestion pipeline against the committed `data/corpus/` directory. The seed is idempotent. The raw corpus is committed into the Docker image; the derived vector index is re-generated at runtime.
+
+### Consequences
+- **Positive:** Demo is always self-consistent after any restart. No manual intervention required. Idempotent design means the seed can run safely on every boot.
+- **Negative:** ~60-second cold-start latency while the corpus is being embedded. Each restart consumes Gemini API quota for embedding (~10 documents × average 10 chunks × 1 embedding call = ~100 API calls). Production would use a persistent volume or managed vector DB to avoid this overhead.
+
+---
+
+## ADR-020: File-Based Global Quota Counter for Public Demo
+
+**Status**: Accepted
+**Date**: 2026-10-18
+
+### Context
+The public demo uses the Gemini free API tier (1,500 RPD, 15 RPM). Without a server-side global cap, motivated bad actors or bots could exhaust the daily quota within minutes, making the demo non-functional for every other visitor for the rest of the day.
+
+### Decision
+We implement a JSON file-based atomic counter at `QUOTA_FILE_PATH` (default: `/tmp/daily_quota.json`). A thread lock ensures safety under single-worker uvicorn. The counter rolls over at UTC midnight. When exhausted, the backend returns HTTP 429 with a user-friendly message directing visitors to clone the repo and run locally with Ollama. Both the daily cap and the file path are configurable via environment variables.
+
+### Consequences
+- **Positive:** Hard server-side enforcement — cannot be bypassed by refreshing or using multiple sessions. No additional infrastructure required (no Redis, no database). Friendly exhaustion message converts frustrated users into potential contributors.
+- **Negative:** File-based counter doesn't scale across multiple uvicorn workers or container replicas (mitigated by `--workers 1`). Counter resets on container restart (acceptable — restart also means LanceDB re-seed and ~60s downtime anyway). Production would use Redis `INCR` + `EXPIREAT` for distributed, atomic counting.
