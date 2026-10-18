@@ -9,6 +9,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
+
+# Load local .env if present
+load_dotenv()
 
 # Backend URL defaults to localhost:8000
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")

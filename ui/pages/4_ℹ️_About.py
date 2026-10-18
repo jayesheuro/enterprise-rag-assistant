@@ -1,10 +1,11 @@
 """About & Architecture Overview.
 
 Recruiter- and stakeholder-facing overview detailing system architecture,
-design decisions, technical stack badges, and engineering documentation.
+design decisions, and technical stack badges.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from ui.styles import apply_custom_styles
 
@@ -13,6 +14,50 @@ st.set_page_config(
     page_icon="ℹ️",
     layout="wide",
 )
+
+
+def render_mermaid(code: str, height: int = 580):
+    """Render a visual SVG Mermaid diagram using Mermaid.js."""
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                margin: 0;
+                padding: 10px;
+                display: flex;
+                justify-content: center;
+                background-color: transparent;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }}
+            .mermaid {{
+                width: 100%;
+                text-align: center;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="mermaid">
+{code}
+        </div>
+        <script type="module">
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+            mermaid.initialize({{
+                startOnLoad: true,
+                theme: 'neutral',
+                flowchart: {{
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: 'basis'
+                }}
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    components.html(html_content, height=height, scrolling=True)
 
 
 def main():
@@ -68,14 +113,20 @@ flowchart TD
         Corpus[("Local Corpus<br/>Policies, Guides, Plans")]
     end
 
-    Client_API -- "HTTP (BACKEND_URL)" --> API
-    Router_Chat --> Pipeline
-    Router_Ingest --> Storage
-    Router_Eval --> Storage
-    Pipeline --> LanceDB
-    Pipeline --> MLflow
+    Client_API -- "HTTP (BACKEND_URL)" --> Router_Chat
+    Client_API --> Router_Eval
+    Client_API --> Router_Ingest
+    Router_Chat --> Retriever
+    Router_Ingest --> LanceDB
+    Router_Eval --> MLflow
+    Retriever --> LanceDB
+    Retriever --> Corpus
+    RAGChain --> MLflow
 """
-    st.code(mermaid_code, language="mermaid")
+    render_mermaid(mermaid_code, height=580)
+
+    with st.expander("🔍 View Raw Diagram Source", expanded=False):
+        st.code(mermaid_code, language="mermaid")
 
     st.divider()
 
@@ -154,21 +205,6 @@ flowchart TD
               provides concrete numerical confidence before any deployment.
             """
         )
-
-    st.divider()
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # SECTION 4: Repository & Documentation Links
-    # ──────────────────────────────────────────────────────────────────────────
-    st.subheader("📚 Project Documentation")
-    st.markdown(
-        """
-        - 📖 **Architecture Decision Records (ADRs):** `docs/architecture/decisions.md`
-        - 🎓 **Phase 1-6 Learning Contracts:** `docs/learning/`
-        - ❓ **Interview Question Bank:** `docs/question-bank/`
-        - 🧪 **Offline Evaluation Reports:** `eval/reports/`
-        """
-    )
 
 
 if __name__ == "__main__":
