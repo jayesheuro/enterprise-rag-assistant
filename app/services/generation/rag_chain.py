@@ -143,7 +143,7 @@ class RAGChain:
             if idx in cited_indices:
                 sources.append(
                     Source(
-                        text=chunk.text[:200],
+                        text=chunk.text,
                         source=chunk.source,
                         page=chunk.page,
                         chunk_id=chunk.chunk_id,

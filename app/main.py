@@ -42,11 +42,33 @@ def create_app() -> FastAPI:
 
     # ── Register routers ────────────────────────────────────────────────
     app.include_router(health.router, tags=["health"])
-    
-    from app.api.routes import ingest, chat, eval
+
+    from app.api.routes import chat, eval, ingest
+
     app.include_router(ingest.router)
     app.include_router(chat.router)
     app.include_router(eval.router)
+
+    @app.get("/config", tags=["config"])
+    async def get_system_config():
+        """Return system configuration overview for UI sidebar and settings."""
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        model_name = (
+            settings.provider_config.model if settings.provider_config else "unknown"
+        )
+        embed_name = (
+            settings.provider_config.embedding_model if settings.provider_config else "unknown"
+        )
+        return {
+            "provider": settings.provider,
+            "model": model_name,
+            "embedding_model": embed_name,
+            "retrieval": settings.retrieval.model_dump(),
+            "chunking": settings.chunking.model_dump(),
+        }
+
     # ── Exception handlers ──────────────────────────────────────────────
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
@@ -77,4 +99,3 @@ def create_app() -> FastAPI:
 
 # Application instance for uvicorn
 app = create_app()
-

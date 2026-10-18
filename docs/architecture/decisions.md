@@ -289,3 +289,41 @@ We will use `sqlite:///mlflow.db` as the local tracking URI. Additionally, the t
 ### Consequences
 - **Positive:** Full MLflow UI capabilities (compare runs, filter by metrics) work locally. The application remains highly resilient; it will run perfectly in a lightweight production container without MLflow installed.
 - **Negative:** The SQLite DB is local to the developer's machine. For team collaboration, this would eventually need to be migrated to a hosted MLflow server (e.g., Databricks or a shared Postgres instance).
+
+---
+
+## ADR-016: Decoupled Streamlit Frontend via HTTP API Client
+
+**Status**: Accepted  
+**Date**: 2026-10-16
+
+### Context
+When building data applications with Streamlit, developers often directly import database drivers, configuration loaders, and pipeline models into the UI script. While convenient for prototypes, this tightly couples the presentation layer to backend storage, complicates horizontal scaling, and violates standard microservice architecture.
+
+### Decision
+We will build the Streamlit frontend as a completely decoupled consumer. The UI in `ui/` imports zero backend code. Instead, it interacts with FastAPI exclusively over standard HTTP via a typed API client (`ui/api_client.py`), configurable via `BACKEND_URL`.
+
+### Consequences
+- **Positive:** Clean architectural separation of concerns. The backend can be containerized, load-balanced, and deployed independently. The frontend can eventually be rewritten in React/Next.js without modifying any backend code.
+- **Negative:** Requires defining and maintaining typed HTTP data transfer models and serialization/deserialization logic on both sides of the boundary.
+
+---
+
+## ADR-017: Demo Mode Guardrails for Public Showcase Deploys
+
+**Status**: Accepted  
+**Date**: 2026-10-16
+
+### Context
+The application will be deployed to public portfolio environments (such as Hugging Face Spaces). Public visitors should be able to experience the pipeline, inspect retrieval scores, and view benchmark metrics. However, unauthenticated public visitors must not be allowed to corrupt the vector store, upload arbitrary documents, or exhaust API quotas through infinite chat spam.
+
+### Decision
+We will introduce an environment-level toggle `DEMO_MODE=true`. When active:
+1. Mutating ingestion actions (file uploads and re-indexing) are locked and replaced with a clear notice.
+2. User chat interactions are rate-limited to 10 queries per browser session.
+3. In local development (`DEMO_MODE=false`), all capabilities remain fully unlocked.
+
+### Consequences
+- **Positive:** Guarantees infrastructure safety and quota preservation on public demonstration spaces without requiring complex user authentication or database locks.
+- **Negative:** Legitimate portfolio reviewers cannot test live document uploading on the public demo unless they clone and run the repository locally.
+
